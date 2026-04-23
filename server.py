@@ -21,7 +21,7 @@ plot_pchart             Normal probability (P-chart) for a PIN column, per wafer
 
 import os
 import sys
-# ── path bootstrap so imports work regardless of cwd ──
+# path bootstrap so imports work regardless of cwd
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 
@@ -51,7 +51,7 @@ mcp = FastMCP(
 )
 
 
-# ── workflow: full analysis ──
+# workflow: full analysis
 @mcp.tool()
 def run_wafer_analysis(
     file_path: str,
@@ -94,7 +94,7 @@ def run_wafer_analysis(
     return content
 
 
-# ── tool 1: read basic wafer info ─────────────────────────────────────────
+# tool 1: read basic wafer info
 @mcp.tool()
 def get_wafer_info(file_path: str) -> list[dict]:
     """
@@ -116,7 +116,7 @@ def get_wafer_info(file_path: str) -> list[dict]:
     return read_wafer_info(file_path)
 
 
-# ── tool 2: binary pass/fail ───────────────────────────────────────────────
+# tool 2: binary pass/fail
 @mcp.tool()
 def plot_wafer_bin(
     file_path: str,
@@ -144,7 +144,7 @@ def plot_wafer_bin(
     return Image(data=_base64.b64decode(b64), format="png")
 
 
-# ── tool 3: continuous PIN property map ───────────────────────────────────
+# tool 3: continuous PIN property map
 @mcp.tool()
 def plot_wafer_property(
     file_path: str,
@@ -186,7 +186,7 @@ def plot_wafer_property(
     return Image(data=_base64.b64decode(b64), format="png")
 
 
-# ── tool: P-chart (normal probability plot) ───────────────────────────────
+# tool: P-chart (normal probability plot)
 @mcp.tool()
 def plot_pchart(
     file_path: str,
@@ -218,6 +218,6 @@ def plot_pchart(
     return Image(data=_base64.b64decode(b64), format="png")
 
 
-# ── entry point ────────────────────────────────────────────────────────────
+# entry point
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")
