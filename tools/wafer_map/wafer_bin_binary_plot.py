@@ -20,7 +20,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 
-# ── colours ────────────────────────────────────────────────────────────────
+# setup colours
 _C_NAN   = QColor(130, 130, 130)   # gray  – no die
 _C_PASS  = QColor(10, 186, 181)   # teal        – BIN = 0
 _C_FAIL  = QColor(30,   30,  30)   # near-black  – BIN != 0
@@ -125,7 +125,7 @@ def render_wafer_bin(
     return base64.b64encode(bytes(buf_data)).decode()
 
 
-# ── standalone preview ──────────────────────────────────────────────────────
+# standalone preview
 if __name__ == "__main__":
     here = os.path.dirname(os.path.abspath(__file__))
     sample = os.path.normpath(
