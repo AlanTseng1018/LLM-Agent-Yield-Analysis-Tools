@@ -2,8 +2,6 @@
 
 An **MCP (Model Context Protocol)** server that exposes semiconductor wafer analysis tools to AI assistants.
 These tools are designed for semiconductor test data analysis, enabling AI agents to correctly generate key engineering visualization charts such as wafer maps, P-charts, trend plots, and statistical analysis figures from raw test data.
-The system helps transform raw wafer test results into interpretable visual patterns, allowing engineers to quickly identify abnormal distributions, process-related issues, yield risks, and hidden failure signatures that are difficult to detect from tabular data alone.
-By integrating function calling with standardized plotting workflows, the MCP server allows LLM-based agents to perform practical wafer-level analysis tasks, supporting debugging, yield monitoring, process optimization, and anomaly investigation in real engineering scenarios.
 
 
 Sample data file header:
