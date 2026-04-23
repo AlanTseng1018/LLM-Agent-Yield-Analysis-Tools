@@ -2,26 +2,6 @@
 
 An **MCP (Model Context Protocol)** server that exposes semiconductor wafer analysis tools to AI assistants.
 These tools are designed for semiconductor test data analysis, enabling AI agents to correctly generate key engineering visualization charts such as wafer maps, P-charts, trend plots, and statistical analysis figures from raw test data.
-
-
-## Sample data file header:
-BIN, X, Y, WAFER_ID, PIN_1, PIN_2, PIN_3, PIN_4, PIN_5
-
-Definitions:
-- BIN: Final test result of each DIE, where 0 indicates Pass.
-- X: X-coordinate location of the DIE.
-- Y: Y-coordinate location of the DIE.
-- WAFER_ID: Unique identifier of the wafer.
-- PIN_1 ~ PIN_5: Test results of each corresponding electrical property.
-
-Given a wafer test data file (CSV or ZIP), it renders:
-- Yield summary statistics
-- Binary pass/fail wafer map
-- Continuous-value PIN property heatmaps
-- Normal probability plots (P-charts) per wafer
-
-All tools are accessible via a single HTTP endpoint, so any MCP-compatible client can use them.
-
 ---
 
 ## Preview
