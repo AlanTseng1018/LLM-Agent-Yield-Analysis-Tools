@@ -31,7 +31,7 @@ from scipy.stats import norm
 from statsmodels.distributions.empirical_distribution import ECDF
 
 
-# ── Probability scale (identical logic to original PchartReportWidget) ─────
+# Probability scale (identical logic to original PchartReportWidget)
 
 class _ProbabilityTransform(mtransforms.Transform):
     input_dims = output_dims = 1
@@ -75,7 +75,7 @@ class _ProbabilityScale(mscale.ScaleBase):
 mscale.register_scale(_ProbabilityScale)
 
 
-# ── Data helpers ────────────────────────────────────────────────────────────
+# Data helpers
 
 def _read_rows(file_path: str) -> list[dict]:
     if file_path.lower().endswith(".zip"):
@@ -232,7 +232,7 @@ def render_pchart(
                   alpha=0.85, boxstyle="round,pad=0.3"),
     )
 
-    # ── Cosmetics ─────────────────────────────────────────────────────────
+    # Cosmetics
     ax.set_title(f"P-Chart  —  {pin_column}", fontsize=7, pad=4)
     ax.set_xlabel("Value", fontsize=6)
     ax.set_ylabel("Cumulative Probability", fontsize=6)
@@ -247,7 +247,7 @@ def render_pchart(
 
     fig.tight_layout(pad=0.8)
 
-    # ── Encode to base64 PNG ──────────────────────────────────────────────
+    # Encode to base64 PNG
     buf = BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -255,7 +255,7 @@ def render_pchart(
     return base64.b64encode(buf.read()).decode()
 
 
-# ── Standalone preview ───────────────────────────────────────────────────────
+# Standalone test
 if __name__ == "__main__":
     import os
 
