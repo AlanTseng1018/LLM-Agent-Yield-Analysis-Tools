@@ -84,7 +84,7 @@ def read_wafer_info(file_path: str) -> list[WaferInfo]:
     return result
 
 
-# ── standalone test ────────────────────────────────────────────────────────
+# standalone test
 if __name__ == "__main__":
     import os, pprint
     here   = os.path.dirname(os.path.abspath(__file__))
