@@ -1,7 +1,15 @@
 # Wafer Map MCP Server
 
-An **MCP (Model Context Protocol)** server that exposes semiconductor wafer analysis tools to AI assistants.
-These tools are designed for semiconductor test data analysis, enabling AI agents to correctly generate key engineering visualization charts such as wafer maps, P-charts, trend plots, and statistical analysis figures from raw test data.
+An **MCP (Model Context Protocol)** server that exposes semiconductor wafer analysis tools to AI assistants such as Claude Desktop.
+
+Given a wafer test data file (CSV or ZIP), it renders:
+- Yield summary statistics
+- Binary pass/fail wafer map
+- Continuous-value PIN property heatmaps
+- Normal probability plots (P-charts) per wafer
+
+All tools are accessible via a single HTTP endpoint, so any MCP-compatible client can use them.
+
 ---
 
 ## Preview

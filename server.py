@@ -21,19 +21,76 @@ plot_pchart             Normal probability (P-chart) for a PIN column, per wafer
 
 import os
 import sys
-# path bootstrap so imports work regardless of cwd
+# ── path bootstrap so imports work regardless of cwd ──
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 
-import base64 as _base64
-from mcp.server.fastmcp import FastMCP, Image
+from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent, ImageContent
 
-from tools.information_read.read_wafer_info import read_wafer_info
+from tools.information_read.read_wafer_info import read_wafer_info, _read_rows
 from tools.wafer_map.wafer_bin_binary_plot import render_wafer_bin
-from tools.wafer_map.wafer_item_property_plot import render_wafer_property
+from tools.wafer_map.wafer_item_property_plot import render_wafer_property, compute_property_stats
 from tools.workflow.analyze_wafer import analyze_wafer
-from tools.statistic_plot.pchart_plot import render_pchart
+from tools.statistic_plot.pchart_plot import render_pchart, compute_pchart_stats
+
+
+# ── fact-card helpers ──────────────────────────────────────────────────────
+# Each plotting tool returns a short text "fact card" alongside its image.
+# Numbers a vision model would otherwise have to read off tiny pixels (yield,
+# IQR scale bounds, percentiles) are given as exact text, so the model can
+# focus on the spatial pattern instead of OCR-ing labels.
+
+def _lot_name(file_path: str) -> str:
+    """Wafer lot name from the data's Wafer_lot_name column; file name as fallback."""
+    try:
+        rows = _read_rows(file_path)
+        if rows:
+            name = (rows[0].get("Wafer_lot_name") or "").strip()
+            if name:
+                return name
+    except Exception:
+        pass
+    stem = os.path.basename(file_path)
+    for ext in (".zip", ".csv"):
+        if stem.lower().endswith(ext):
+            stem = stem[: -len(ext)]
+    return stem or "unknown"
+
+
+def _binary_fact_card(file_path: str) -> str:
+    lines = ["[Wafer Facts]", f"Product / Lot: {_lot_name(file_path)}"]
+    for w in read_wafer_info(file_path):
+        lines.append(
+            f"Wafer {w['wafer_id']}: yield {w['yield_pct']}% "
+            f"({w['pass_count']} pass / {w['fail_count']} fail / {w['test_die']} dies)"
+        )
+    return "\n".join(lines)
+
+
+def _property_fact_card(file_path: str, pin_column: str) -> str:
+    s = compute_property_stats(file_path, pin_column)
+    head = f"[Wafer Facts]\nProduct / Lot: {_lot_name(file_path)}\nPIN: {pin_column}"
+    if s.get("n", 0) == 0:
+        return f"{head}\n(no numeric data)"
+    return (
+        f"{head}\n"
+        f"Statistics: P50={s['p50']:.4g}, IQR sigma={s['sigma']:.4g}, N={s['n']} dies\n"
+        f"Colour scale (auto IQR): low={s['iqr_l']:.4g} (blue) ... high={s['iqr_h']:.4g} (red)"
+    )
+
+
+def _pchart_fact_card(file_path: str, pin_column: str) -> str:
+    s = compute_pchart_stats(file_path, pin_column)
+    head = f"[Wafer Facts]\nProduct / Lot: {_lot_name(file_path)}\nPIN: {pin_column}"
+    if s.get("n", 0) == 0:
+        return f"{head}\n(no numeric data)"
+    return (
+        f"{head}\n"
+        f"Statistics: P50={s['p50']:.4g}, IQR sigma={s['sigma']:.4g}\n"
+        f"IQR boundaries: IQR_L={s['iqr_l']:.4g}, IQR_H={s['iqr_h']:.4g}\n"
+        f"N={s['n']}, Fail={s['fail']}, Yield={s['yield']}"
+    )
 
 # ── server instance ──
 mcp = FastMCP(
@@ -51,7 +108,7 @@ mcp = FastMCP(
 )
 
 
-# workflow: full analysis
+# ── workflow: full analysis ──
 @mcp.tool()
 def run_wafer_analysis(
     file_path: str,
@@ -94,7 +151,7 @@ def run_wafer_analysis(
     return content
 
 
-# tool 1: read basic wafer info
+# ── tool 1: read basic wafer info ─────────────────────────────────────────
 @mcp.tool()
 def get_wafer_info(file_path: str) -> list[dict]:
     """
@@ -116,12 +173,12 @@ def get_wafer_info(file_path: str) -> list[dict]:
     return read_wafer_info(file_path)
 
 
-# tool 2: binary pass/fail
+# ── tool 2: binary pass/fail ───────────────────────────────────────────────
 @mcp.tool()
 def plot_wafer_bin(
     file_path: str,
     target_size: int = 300,
-) -> Image:
+) -> list[TextContent | ImageContent]:
     """
     Render a binary pass/fail wafer map.
 
@@ -138,13 +195,16 @@ def plot_wafer_bin(
 
     Returns
     -------
-    PNG image of the wafer map.
+    A text fact card (product/lot, yield) followed by the PNG wafer map.
     """
     b64 = render_wafer_bin(file_path, target_size=target_size)
-    return Image(data=_base64.b64decode(b64), format="png")
+    return [
+        TextContent(type="text", text=_binary_fact_card(file_path)),
+        ImageContent(type="image", data=b64, mimeType="image/png"),
+    ]
 
 
-# tool 3: continuous PIN property map
+# ── tool 3: continuous PIN property map ───────────────────────────────────
 @mcp.tool()
 def plot_wafer_property(
     file_path: str,
@@ -152,7 +212,7 @@ def plot_wafer_property(
     target_size: int = 450,
     data_l: float | None = None,
     data_h: float | None = None,
-) -> Image:
+) -> list[TextContent | ImageContent]:
     """
     Render a continuous-value wafer map for a single PIN measurement.
 
@@ -174,7 +234,8 @@ def plot_wafer_property(
 
     Returns
     -------
-    PNG image with colour bar showing DataL, P50, and DataH tick marks.
+    A text fact card (product/lot, PIN statistics, IQR scale) followed by the
+    PNG property map.
     """
     b64 = render_wafer_property(
         file_path,
@@ -183,16 +244,19 @@ def plot_wafer_property(
         data_l=data_l,
         data_h=data_h,
     )
-    return Image(data=_base64.b64decode(b64), format="png")
+    return [
+        TextContent(type="text", text=_property_fact_card(file_path, pin_column)),
+        ImageContent(type="image", data=b64, mimeType="image/png"),
+    ]
 
 
-# tool: P-chart (normal probability plot)
+# ── tool: P-chart (normal probability plot) ───────────────────────────────
 @mcp.tool()
 def plot_pchart(
     file_path: str,
     pin_column: str = "PIN_1",
     target_size: int = 300,
-) -> Image:
+) -> list[TextContent | ImageContent]:
     """
     Render a P-chart (normal probability plot) for a single PIN column.
 
@@ -212,12 +276,16 @@ def plot_pchart(
 
     Returns
     -------
-    PNG image with per-wafer ECDF lines, IQR boundary lines, and a stats box.
+    A text fact card (product/lot, PIN statistics, IQR boundaries) followed by
+    the PNG P-chart.
     """
     b64 = render_pchart(file_path, pin_column=pin_column, target_size=target_size)
-    return Image(data=_base64.b64decode(b64), format="png")
+    return [
+        TextContent(type="text", text=_pchart_fact_card(file_path, pin_column)),
+        ImageContent(type="image", data=b64, mimeType="image/png"),
+    ]
 
 
-# entry point
+# ── entry point ────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     mcp.run(transport="streamable-http")

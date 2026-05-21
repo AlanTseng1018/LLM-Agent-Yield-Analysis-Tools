@@ -31,7 +31,7 @@ from scipy.stats import norm
 from statsmodels.distributions.empirical_distribution import ECDF
 
 
-# Probability scale (identical logic to original PchartReportWidget)
+# ── Probability scale (identical logic to original PchartReportWidget) ─────
 
 class _ProbabilityTransform(mtransforms.Transform):
     input_dims = output_dims = 1
@@ -75,7 +75,7 @@ class _ProbabilityScale(mscale.ScaleBase):
 mscale.register_scale(_ProbabilityScale)
 
 
-# Data helpers
+# ── Data helpers ────────────────────────────────────────────────────────────
 
 def _read_rows(file_path: str) -> list[dict]:
     if file_path.lower().endswith(".zip"):
@@ -122,6 +122,30 @@ def _calculate_fail_count(
     fail = sum(1 for v in data if v < iqr_l or v > iqr_h)
     yield_str = f"{round((total - fail) / total * 100, 2)}%"
     return total, fail, yield_str
+
+
+def compute_pchart_stats(file_path: str, pin_column: str = "PIN_1") -> dict:
+    """
+    Compute the P-chart statistics for one PIN column WITHOUT rendering, so
+    the numbers can be handed to a vision model as text rather than being
+    read back off the stats-box pixels.
+    """
+    rows = _read_rows(file_path)
+    values = [v for v in (_to_float(r.get(pin_column)) for r in rows) if v is not None]
+    if not values:
+        return {"pin_column": pin_column, "n": 0}
+    iqr_l, p50, iqr_h = _iqr_bounds(values)
+    total, fail, yield_str = _calculate_fail_count(values, iqr_l, iqr_h)
+    return {
+        "pin_column": pin_column,
+        "n":          total,
+        "p50":        p50,
+        "sigma":      (iqr_h - iqr_l) / 12.0,   # iqr_h - iqr_l == 12 * sigma
+        "iqr_l":      iqr_l,
+        "iqr_h":      iqr_h,
+        "fail":       fail,
+        "yield":      yield_str,
+    }
 
 
 # ── Main renderer ────────────────────────────────────────────────────────────
@@ -232,7 +256,7 @@ def render_pchart(
                   alpha=0.85, boxstyle="round,pad=0.3"),
     )
 
-    # Cosmetics
+    # ── Cosmetics ─────────────────────────────────────────────────────────
     ax.set_title(f"P-Chart  —  {pin_column}", fontsize=7, pad=4)
     ax.set_xlabel("Value", fontsize=6)
     ax.set_ylabel("Cumulative Probability", fontsize=6)
@@ -247,7 +271,7 @@ def render_pchart(
 
     fig.tight_layout(pad=0.8)
 
-    # Encode to base64 PNG
+    # ── Encode to base64 PNG ──────────────────────────────────────────────
     buf = BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
@@ -255,7 +279,7 @@ def render_pchart(
     return base64.b64encode(buf.read()).decode()
 
 
-# Standalone test
+# ── Standalone preview ───────────────────────────────────────────────────────
 if __name__ == "__main__":
     import os
 

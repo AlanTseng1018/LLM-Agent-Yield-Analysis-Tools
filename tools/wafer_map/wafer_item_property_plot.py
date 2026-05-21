@@ -27,7 +27,7 @@ from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QImage, QPainter, QPen
 from PySide6.QtWidgets import QApplication
 
-# font bootstrap
+# ── font bootstrap ─────────────────────────────────────────────────────────
 _FONT_FAMILY = "Arial"
 _FONT_LOADED  = False
 
@@ -54,7 +54,7 @@ def _ensure_font(app: QApplication) -> None:
     _FONT_LOADED = True
 
 
-# fixed colours
+# ── fixed colours ──────────────────────────────────────────────────────────
 _C_NAN  = QColor(130, 130, 130)   # outside wafer boundary
 _C_GRID = QColor(0,   0,   0)     # grid lines
 
@@ -66,8 +66,8 @@ def _die_color(value: float, data_l: float, data_h: float) -> QColor:
         t = 0.5
     else:
         t = (value - data_l) / span
-    t = max(0.0, min(1.0, t)) # clamp to [0, 1]
-    hue_f = 0.667 * (1.0 - t) # 0.667=blue (low) … 0.0=red (high)
+    t = max(0.0, min(1.0, t))           # clamp to [0, 1]
+    hue_f = 0.667 * (1.0 - t)          # 0.667=blue (low) … 0.0=red (high)
     return QColor.fromHsvF(hue_f, 0.95, 0.92)
 
 
@@ -89,6 +89,7 @@ def _compute_scale(values: list[float]) -> tuple[float, float, float, float]:
     x_sigma   = (value_p75 - value_p25) / 1.35 if n > 1 else 0.0
 
     if x_sigma > 0:
+        # Keep 2 extra digits beyond the sigma's leading digit
         magnitude = math.floor(math.log10(x_sigma))
         q2_decimal_count = max(0, -magnitude + 2)
     else:
@@ -108,6 +109,32 @@ def _read_rows(file_path: str) -> list[dict]:
         with open(file_path, encoding="utf-8") as f:
             content = f.read()
     return list(csv.DictReader(StringIO(content)))
+
+
+def compute_property_stats(file_path: str, pin_column: str = "PIN_1") -> dict:
+    """
+    Compute the IQR colour-scale statistics for one PIN column WITHOUT
+    rendering. Returns the same numbers the property map is drawn with, so
+    they can be handed to a vision model as text instead of being read
+    back off the colour-bar pixels.
+    """
+    rows = _read_rows(file_path)
+    values = [
+        float(r[pin_column])
+        for r in rows
+        if r.get(pin_column, "").strip() not in ("", "nan", "NaN")
+    ]
+    if not values:
+        return {"pin_column": pin_column, "n": 0}
+    data_l, data_h, p50, sigma = _compute_scale(values)
+    return {
+        "pin_column": pin_column,
+        "n":          len(values),
+        "p50":        p50,
+        "sigma":      sigma,
+        "iqr_l":      data_l,
+        "iqr_h":      data_h,
+    }
 
 
 def render_wafer_property(
@@ -152,7 +179,7 @@ def render_wafer_property(
         if r.get(pin_column, "").strip() not in ("", "nan", "NaN")
     }
 
-    # scale
+    # ── scale ──────────────────────────────────────────────────────────────
     all_vals = list(die_map.values())
     auto_l, auto_h, p50, sigma = _compute_scale(all_vals)
     if data_l is None:
@@ -167,7 +194,7 @@ def render_wafer_property(
     else:
         dec = 4
 
-    # wafer grid setup
+    # ── wafer grid ─────────────────────────────────────────────────────────
     cell_w = target_size / cols
     cell_h = target_size / nrows
     img_w  = round(cell_w * cols)
@@ -191,7 +218,7 @@ def render_wafer_property(
 
     p.end()
 
-    # color bar layout
+    # ── color bar layout ───────────────────────────────────────────────────
     CBAR_LEFT   = 18   # gap between wafer and bar
     CBAR_W      = 20   # bar width
     TICK_LEN    = 5    # tick mark length
@@ -218,8 +245,8 @@ def render_wafer_property(
 
     N = 200
     for i in range(N):
-        t = i / (N - 1)   # 0 = top = high = red
-        hue_f = 0.667 * t # 0.0=red … 0.667=blue
+        t = i / (N - 1)                 # 0 = top = high = red
+        hue_f = 0.667 * t               # 0.0=red … 0.667=blue
         c = QColor.fromHsvF(hue_f, 0.95, 0.92)
         seg_y = cbar_top + round(i * cbar_h / N)
         seg_h = max(1, round((i + 1) * cbar_h / N) - round(i * cbar_h / N))
@@ -242,7 +269,7 @@ def render_wafer_property(
     p.setFont(font)
     p.setPen(QPen(QColor(30, 30, 30), 1))
 
-    tick_x0 = cbar_x + CBAR_W # right edge of bar
+    tick_x0 = cbar_x + CBAR_W          # right edge of bar
     tick_x1 = tick_x0 + TICK_LEN
     label_x = tick_x1 + TICK_PAD
 
@@ -276,7 +303,7 @@ def render_wafer_property(
     return base64.b64encode(bytes(buf_data)).decode()
 
 
-# standalone preview
+# ── standalone preview ──────────────────────────────────────────────────────
 if __name__ == "__main__":
     here   = os.path.dirname(os.path.abspath(__file__))
     sample = os.path.normpath(

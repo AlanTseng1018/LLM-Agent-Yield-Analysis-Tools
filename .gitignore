@@ -7,3 +7,10 @@ venv/
 *.egg-info/
 dist/
 build/
+
+# local working files — not part of the MCP server project
+.claude/
+DIV2K/
+pdf/
+wafer_maps/
+GitHub.txt
